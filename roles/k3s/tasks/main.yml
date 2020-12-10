@@ -83,12 +83,6 @@
     remote_src: yes
     owner: "{{ my_user }}"
 
-- name: Replace https://localhost:6443 by https://master-pi:6443
-  replace:
-    path: /home/{{ my_user }}/.kube/config
-    regexp: 'https://127.0.0.1:6443'
-    replace: 'https://{{vip_addr}}:6443'
-
 - name: modify .bashrc
   blockinfile:
     dest: /home/{{ my_user }}/.bashrc
