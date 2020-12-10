@@ -38,11 +38,13 @@
       - restart keepalived 
 
 - name: Enable service keepalived
+  become: yes
   service:
     name: keepalived
     enabled: yes
 
 - name: Started service keepalived
+  become: yes
   service:
     name: keepalived
     state: started

@@ -1,18 +1,10 @@
-- hosts: leda
-  vars:
-    cluster_name: "leda"
-    vip_iface: "eno1"
-    vip_addr: "10.0.0.84"
+- hosts: cluster
   tasks:
     - name: cluster nodes IP addresses
       debug:
         msg: "{{ hostvars[item]['ansible_' + vip_iface]['ipv4']['address'] }} {{ item }}"
       with_items: "{{ ansible_play_hosts }}"
 - hosts: localhost
-  vars:
-    cluster_name: "leda"
-    vip_iface: "eno1"
-    vip_addr: "10.0.0.84"
   gather_facts: False
   become: false
   tasks:
@@ -23,7 +15,7 @@
             size: 4096
             state: present
             force: true
-       with_items: "{{ groups['leda'] }}"
+       with_items: "{{ groups['cluster'] }}"
      - name: "Generate CSR for each member"
        openssl_csr:
             path: ./roles/etcd/artifacts/{{item}}.csr
@@ -39,7 +31,7 @@
               - IP:{{ vip_addr }}
               - IP:127.0.0.1
             force: True
-       with_items: "{{ groups['leda'] }}"
+       with_items: "{{ groups['cluster'] }}"
      - name: "Generate private key for CA"
        openssl_privatekey:
          path: ./roles/etcd/artifacts/ca.key
@@ -52,7 +44,7 @@
          path: ./roles/etcd/artifacts/ca.csr
          privatekey_path: ./roles/etcd/artifacts/ca.key
          common_name: ca
-         organization_name: "Lamia CA"
+         organization_name: "My comp CA"
          basic_constraints:
            - CA:TRUE
            - pathlen:1
@@ -76,5 +68,5 @@
          ownca_privatekey_path: ./roles/etcd/artifacts/ca.key
          provider: ownca
          force: True
-       with_items: "{{ groups['leda'] }}"
+       with_items: "{{ groups['cluster'] }}"
 

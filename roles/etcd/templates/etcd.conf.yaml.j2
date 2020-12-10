@@ -6,7 +6,7 @@ listen-peer-urls: https://{{ hostvars[inventory_hostname]['ansible_facts'][vip_i
 advertise-client-urls: https://{{ hostvars[inventory_hostname]['ansible_facts'][vip_iface]['ipv4']['address'] }}:2379
 listen-client-urls: https://{{ hostvars[inventory_hostname]['ansible_facts'][vip_iface]['ipv4']['address'] }}:2379,https://127.0.0.1:2379
 initial-cluster-state: new
-initial-cluster: {% for host in groups['leda'] %}{{ hostvars[host]['ansible_facts']['hostname'] }}=https://{{ hostvars[host]['ansible_facts'][vip_iface]['ipv4']['address'] }}:2380{% if not loop.last %},{% endif %}{% endfor %}
+initial-cluster: {% for host in groups['cluster'] %}{{ hostvars[host]['ansible_facts']['hostname'] }}=https://{{ hostvars[host]['ansible_facts'][vip_iface]['ipv4']['address'] }}:2380{% if not loop.last %},{% endif %}{% endfor %}
 
 
 client-transport-security:
