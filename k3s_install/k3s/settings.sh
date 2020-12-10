@@ -1,5 +1,0 @@
-export K3S_DATASTORE_ENDPOINT='https://10.0.0.85:2379,https://10.0.0.86:2379,https://10.0.0.87:2379'
-export K3S_DATASTORE_CAFILE='/etc/etcd/ssl/ca.crt'
-export K3S_DATASTORE_CERTFILE='/etc/etcd/ssl/server.crt'
-export K3S_DATASTORE_KEYFILE='/etc/etcd/ssl/server.key'
-export INSTALL_K3S_EXEC='--docker --tls-san 10.0.0.84'

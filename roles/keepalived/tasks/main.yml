@@ -57,12 +57,12 @@
       line: "{{ hostvars[item]['ansible_' + vip_iface]['ipv4']['address'] }} {{ item }} #ANSIBLE"
   with_items: "{{ ansible_play_hosts }}"
 
-- name: Add cluster VIP addresse to host file
+- name: Add cluster VIP address to host file
   become: yes
   lineinfile:
       dest: /etc/hosts
-      regexp: ".*{{ cluster_name }}-cluster #ANSIBLE$"
-      line: "{{ vip_addr }} {{ cluster_name }}-cluster #ANSIBLE"
+      regexp: ".*{{ cluster_name }}-vip #ANSIBLE$"
+      line: "{{ vip_addr }} {{ cluster_name }}-vip #ANSIBLE"
 
         
 #- name: ping all cluster nodes
