@@ -1,0 +1,100 @@
+- name: check current k3s version
+  command: bash -c "/usr/local/bin/k3s --version|sed 's/k3s version v\([^ ]*\).*$/\1/g'"
+  ignore_errors: yes
+  register: k3s_version
+  changed_when: false
+
+- debug: msg="k3s_version={{k3s_version.stdout}}"
+- debug: msg="new_k3s_version={{new_k3s_version}}"
+
+- name: Assume upgrade
+  set_fact:
+    k3s_upgrade: true
+
+- name: continue only when version is older
+  set_fact: 
+    k3s_upgrade: false
+  when: k3s_version.stdout != "" and k3s_version.stdout is version(new_k3s_version, operator='ge')
+
+- debug: msg="continuing with installation"
+  when: k3s_upgrade
+
+- name: download k3s binary 
+  become: yes
+  get_url: 
+      url: https://github.com/rancher/k3s/releases/download/v{{ new_k3s_version }}/k3s
+      dest: /usr/local/bin/k3s
+      owner: root
+      group: root
+      mode: 755
+  when: k3s_upgrade
+  notify:
+      - restart k3s
+
+- name: Ensures /etc/rancher/k3s dir exists
+  become: yes
+  file: path=/etc/rancher/k3s state=directory
+- name: Create k3s configuration file
+  become: yes
+  template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: 0600
+  notify:
+      - restart k3s
+
+- name: Copy K3s service file
+  become: yes
+  register: k3s_service
+  template:
+    src: k3s.service.j2
+    dest: /etc/systemd/system/k3s.service
+    owner: root
+    group: root
+    mode: 0755
+  notify:
+      - restart k3s
+
+- name: Enable and check K3s service
+  become: yes
+  systemd:
+    name: k3s
+    state: started
+    enabled: yes
+
+- name: Wait for new k3s instances to come up
+  wait_for:
+    path: /etc/rancher/k3s/k3s.yaml
+
+- name: Create directory .kube
+  become: yes
+  file:
+    path: /home/{{ my_user }}/.kube
+    state: directory
+    owner: "{{ my_user }}"
+
+- name: Copy config file to user home directory
+  become: yes
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: /home/{{ my_user }}/.kube/config
+    remote_src: yes
+    owner: "{{ my_user }}"
+
+- name: Replace https://localhost:6443 by https://master-pi:6443
+  replace:
+    path: /home/{{ my_user }}/.kube/config
+    regexp: 'https://127.0.0.1:6443'
+    replace: 'https://{{vip_addr}}:6443'
+
+- name: modify .bashrc
+  blockinfile:
+    dest: /home/{{ my_user }}/.bashrc
+    block: |
+        alias kubectl='k3s kubectl'
+    marker: '# {mark} Ansible changes for k3s'
+    insertafter: EOF
+    create: yes
+

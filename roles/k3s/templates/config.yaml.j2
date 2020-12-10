@@ -1,0 +1,10 @@
+tls-san:
+  - "{{ vip_addr }}"
+write-kubeconfig-mode: "0644"
+datastore-endpoint: "{% for host in groups['cluster'] %}https://{{ hostvars[host]['ansible_facts'][vip_iface]['ipv4']['address'] }}:2379{% if not loop.last %},{% endif %}{% endfor %}"
+datastore-cafile: "/etc/etcd/ssl/ca.crt"
+datastore-certfile: "/etc/etcd/ssl/server.crt"
+datastore-keyfile: "/etc/etcd/ssl/server.key"
+{% if k3s_use_docker %}
+docker: true
+{% endif %}
