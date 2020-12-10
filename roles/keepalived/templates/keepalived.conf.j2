@@ -1,0 +1,83 @@
+global_defs {
+   # Name of VIP Instance
+   router_id {{ cluster_name }}VIP
+   
+   # Enable SNMP Monitoring (Optional)
+   # enable_traps
+   enable_script_security
+   script_user root
+}
+
+{% if vip_check_kubernetes %}
+vrrp_script APIServerProbe {
+    # Health check the Kubernetes API Server
+    script "/usr/bin/curl -k https://{{ cluster_current_node_ip }}:6443"
+    interval 3
+    timeout 9
+    fall 2
+    rise 2
+}
+{% endif %}
+
+vrrp_instance APIServerVIP {
+    # Interface to bind to
+    interface {{ vip_iface }}
+
+    # Set host in group primus to master, rest as backup
+    {% if ansible_fqdn in groups['primus'] %}
+    state MASTER
+    priority 100
+    {% else %}
+    state BACKUP
+    priority 99
+    {% endif %}
+
+    # Address of this particular node
+    mcast_src_ip {{ cluster_current_node_ip }}
+
+    # A unique ID if more than one service is being defined
+    virtual_router_id 61
+    advert_int 1
+    nopreempt
+
+	# Execute a notification script when a host transitions to
+	# MASTER or BACKUP, or when a fault occurs. The arguments
+	# passed to the script are:
+	# $1 - "GROUP"|"INSTANCE"
+	# $2 = name of group or instance
+	# $3 = target state of transition
+	# Sample: VRRP-notification.sh VRRP_ROUTER1 BACKUP 100
+	# notify "/usr/local/bin/VRRP-notification.sh"
+
+	# Send an SMTP alert during a state transition
+	# smtp_alert
+
+    # Authentication for keepalived to speak with one another
+    authentication {
+          auth_type PASS
+          auth_pass {{ vip_password }}
+    }
+
+    # Other Nodes in Cluster
+    #unicast_peer {
+    #    $other_node_IP
+    #    $other_node_IP
+    #}
+
+    # Kubernetes Virtual IP
+    virtual_ipaddress {
+        {{ vip_addr }}/24
+    }
+
+    {% if vip_check_kubernetes %}
+    # Health check function, check Kubernetes api 
+    track_script {
+        APIServerProbe
+    }
+    {% else %}
+    # No healthcheck required
+    {% endif %}
+
+}
+
+

@@ -1,0 +1,182 @@
+- name: check current etcd version
+  become: yes
+  command: bash -c "/opt/etcd/bin/etcd --version|head -n 1|sed -e 's/etcd Version. //g'|cut -d' ' -f1"
+  ignore_errors: yes
+  register: current_etcd_version
+  changed_when: false
+
+- debug: msg="current_etcd_version={{current_etcd_version.stdout}}"
+- debug: msg="requested etcd_version={{etcd_version}}"
+
+- name: Assume upgrade
+  set_fact:
+    etcd_upgrade: true
+
+- name: continue only when version is older
+  set_fact:
+    etcd_upgrade: false
+  when: current_etcd_version.stdout != "" and current_etcd_version.stdout is version(etcd_version, operator='ge', strict=True)
+
+- debug: msg="continuing with installation"
+  when: etcd_upgrade
+
+- name: "Create directory for etcd binaries"
+  become: yes
+  file:
+    path: /opt/etcd/bin
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+  when: etcd_upgrade
+- name: "Download the tarball into the /tmp directory"
+  become: yes
+  get_url:
+    url: https://storage.googleapis.com/etcd/v{{ etcd_version }}/etcd-v{{ etcd_version }}-linux-amd64.tar.gz
+    dest: /tmp/etcd.tar.gz
+    owner: root
+    group: root
+    mode: 0600
+    force: True
+  when: etcd_upgrade
+- name: "Extract the contents of the tarball"
+  become: yes
+  unarchive:
+    src: /tmp/etcd.tar.gz
+    dest: /opt/etcd/bin/
+    owner: root
+    group: root
+    mode: 0600
+    extra_opts:
+      - --strip-components=1
+    decrypt: True
+    remote_src: True
+  when: etcd_upgrade
+- name: "Set permissions for etcd"
+  become: yes
+  file:
+    path: /opt/etcd/bin/etcd
+    state: file
+    owner: root
+    group: root
+    mode: 0700
+- name: "Set permissions for etcdctl"
+  become: yes
+  file:
+    path: /opt/etcd/bin/etcdctl
+    state: file
+    owner: root
+    group: root
+    mode: 0700
+- name: "Add /opt/etcd/bin/ to the $PATH environment variable"
+  become: yes
+  lineinfile:
+    path: /etc/profile
+    line: export PATH="$PATH:/opt/etcd/bin"
+    state: present
+    create: True
+    insertafter: EOF
+- name: "Set the ETCDCTL_API environment variable to 3"
+  become: yes
+  lineinfile:
+    path: /etc/profile
+    line: export ETCDCTL_API=3
+    state: present
+    create: True
+    insertafter: EOF
+
+
+- name: "Create a data directory"
+  become: yes
+  file:
+    path: /var/lib/etcd/{{ inventory_hostname }}.etcd
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Create etcd config directories
+  become: yes
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - /etc/etcd
+    - /etc/etcd/ssl
+
+- name: "Copy over the CA certificate"
+  become: yes
+  copy:
+    src: ./artifacts/ca.crt
+    remote_src: False
+    dest: /etc/etcd/ssl/ca.crt
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Copy over the `etcd` member certificate"
+  become: yes
+  copy:
+    src: ./artifacts/{{inventory_hostname}}.crt
+    remote_src: False
+    dest: /etc/etcd/ssl/server.crt
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Copy over the `etcd` member key"
+  become: yes
+  copy:
+    src: ./artifacts/{{inventory_hostname}}.key
+    remote_src: False
+    dest: /etc/etcd/ssl/server.key
+    owner: root
+    group: root
+    mode: 0600
+
+- name: "Create a etcd service"
+  become: yes
+  copy:
+    src: files/etcd.service
+    remote_src: False
+    dest: /etc/systemd/system/etcd.service
+    owner: root
+    group: root
+    mode: 0644
+    
+
+- name: "Create configuration file for etcd"
+  become: yes
+  template:
+    src: templates/etcd.conf.yaml.j2
+    dest: /etc/etcd/etcd.conf.yaml
+    owner: root
+    group: root
+    mode: 0600
+  notify:
+      - restart etcd
+
+- name: Enable service etcd
+  become: yes
+  service:
+    name: etcd
+    enabled: yes
+
+- name: Started service etcd
+  become: yes
+  service:
+    name: etcd
+    state: started
+
+- name: "Add convenience script"
+  copy:
+    src: files/etcdctl.sh
+    remote_src: False
+    dest: "/home/{{ my_user }}/scripts/etcdctl.sh"
+    owner: "{{ my_user }}"
+    group: "{{ my_user }}"
+    mode: 0700
+ 

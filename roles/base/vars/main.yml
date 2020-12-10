@@ -1,0 +1,12 @@
+base_pkgs:
+        - vim
+        - screen
+        - tree
+        - curl
+        - git
+        - net-tools
+        - telnet
+        - htop
+        - jq
+        - nfs-common
+        - unattended-upgrades

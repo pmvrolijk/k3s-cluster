@@ -1,0 +1,72 @@
+- name: gather facts about {{ vip_iface }}
+  setup:
+      filter: "ansible_{{ vip_iface }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: True
+  with_items: "{{ ansible_play_hosts }}"
+  when: hostvars[item]['ansible_' + vip_iface]
+
+- name: cluster nodes IP addresses
+  set_fact:
+    cluster_nodes_ips: "{{ cluster_nodes_ips|default([]) + [hostvars[item]['ansible_' + vip_iface]['ipv4']['address']] }}"
+  with_items: "{{ ansible_play_hosts }}"
+
+- name: current cluster node IP address
+  set_fact:
+    cluster_current_node_ip: "{{ hostvars[inventory_hostname]['ansible_' + vip_iface]['ipv4']['address'] }}"
+
+- name: Ensure base packages are installed
+  become: yes
+  apt:
+    name: "keepalived"
+    state: present
+    update_cache: yes
+
+- name: Ensures conf dir exists
+  become: yes
+  file: path=/etc/keepalived state=directory
+
+- name: Create keepalived configuration file
+  become: yes
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0600
+  notify:
+      - restart keepalived 
+
+- name: Enable service keepalived
+  service:
+    name: keepalived
+    enabled: yes
+
+- name: Started service keepalived
+  service:
+    name: keepalived
+    state: started
+
+- name: Add node ip addresses to host file
+  become: yes
+  lineinfile:
+      dest: /etc/hosts
+      regexp: '.*{{ item }} #ANSIBLE$'
+      line: "{{ hostvars[item]['ansible_' + vip_iface]['ipv4']['address'] }} {{ item }} #ANSIBLE"
+  with_items: "{{ ansible_play_hosts }}"
+
+- name: Add cluster VIP addresse to host file
+  become: yes
+  lineinfile:
+      dest: /etc/hosts
+      regexp: ".*{{ cluster_name }}-cluster #ANSIBLE$"
+      line: "{{ vip_addr }} {{ cluster_name }}-cluster #ANSIBLE"
+
+        
+#- name: ping all cluster nodes
+#  command: ping -c 1 {{ item }}
+#  with_items: "{{ cluster_nodes_ips }}"
+#  changed_when: false
+
+
+

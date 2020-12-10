@@ -1,0 +1,3 @@
+home_dir: "/home/{{ my_user }}"
+file_owner: "{{ my_user }}"
+

@@ -1,0 +1,14 @@
+hardstatus on
+hardstatus alwayslastline
+hardstatus string "%{.bW}%-w%{.rW}%n %t%{-}%+w %=%{..G}  %{.bY} %H %{.gY} %l %{.rY} %m/%d %c "
+
+startup_message off            # default: on
+defscrollback 5000          # default: 100
+
+bind x remove # x was Lock, X remove, confusing
+bind j focus down
+bind k focus up
+bind l focus right
+bind h focus left
+bind + resize +3
+bind - resize -3

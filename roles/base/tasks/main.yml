@@ -1,0 +1,68 @@
+- name: Ensure base packages are installed
+  become: yes
+  apt: 
+    name: "{{ base_pkgs }}"
+    state: present
+    update_cache: yes
+
+- name: Copy default profile for main user
+  copy:
+    src: files/{{ item }}
+    dest: /home/{{ my_user }}/ 
+    force: yes
+  with_items:
+          - .screenrc
+          - .vimrc
+
+- name: Copy scripts for main user
+  copy:
+    src: files/scripts/{{ item }}
+    dest: /home/{{ my_user }}/scripts/ 
+    force: yes
+    mode: 0775
+  with_items:
+          - git-prompt.sh
+
+
+- name: Configure git user
+  block:
+    - git_config:
+          name: user.name
+          scope: global
+          value: "{{ my_name }}"
+    - git_config:
+          name: user.email
+          scope: global
+          value: "{{ my_email }}"
+    - git_config:
+          name: alias.ci
+          scope: global
+          value: commit
+
+- name: modify .bashrc
+  blockinfile:
+    dest: /home/{{ my_user }}/.bashrc
+    block: |
+        . ~/scripts/git-prompt.sh
+        export GIT_PS1_SHOWDIRTYSTATE=1
+        export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w$(__git_ps1 " (%s)")\[\033[00m\]\$ '
+        #Always prefer using a screen
+        #if [[ -z "$STY" ]]; then
+        #       screen -xRR default
+        #fi
+    marker: '# {mark} Ansible changes for bash-gitprompt'
+    insertafter: EOF
+    create: yes
+
+- name: Install MOTD
+  become: yes
+  copy:
+     src: files/motd
+     dest: /etc/motd
+     mode: 644
+
+- name: enable unattended security updates option
+  become: yes
+  debconf: name=unattended-upgrades question='unattended-upgrades/enable_auto_updates' value='true' vtype='boolean'
+  notify: reconfigure unattended-upgrades
+

@@ -1,0 +1,66 @@
+- name: check current golang version
+  command: bash -c "/usr/local/go/bin/go version|sed -e 's/go version go//g'|cut -d' ' -f1"
+  ignore_errors: yes
+  register: go_version
+  changed_when: false
+
+- debug: msg="go_version={{go_version.stdout}}"
+- debug: msg="new_go_version={{new_go_version}}"
+
+- name: Assume upgrade
+  set_fact:
+    go_upgrade: true
+
+- name: continue only when version is older
+  set_fact: 
+    go_upgrade: false
+  when: go_version.stdout != "" and go_version.stdout is version(new_go_version, operator='ge', strict=True)
+
+- debug: msg="continuing with installation"
+  when: go_upgrade
+
+- name: download golang tar 
+  get_url:
+    url: "https://storage.googleapis.com/golang/go{{new_go_version}}.linux-amd64.tar.gz"
+    dest: "{{home_dir}}"
+    mode: 0440
+  when: go_upgrade
+   
+- name: Remove old installation of Go
+  file:
+    path: /usr/local/go
+    state: absent
+  become: yes
+  when: go_upgrade
+
+- name: Extract the Go tarball
+  unarchive:
+    src: "{{home_dir}}/go{{new_go_version}}.linux-amd64.tar.gz"
+    dest: /usr/local
+    copy: no
+  become: yes
+  when: go_upgrade
+
+- name: create go directories in home
+  file:
+    path: "{{item}}"
+    state: directory
+    owner: "{{file_owner}}"
+    group: "{{file_owner}}"
+    mode: 0775
+  with_items:
+  - "{{home_dir}}/go"
+  - "{{home_dir}}/go/bin"
+  when: go_upgrade
+   
+- name: modify .bashrc
+  blockinfile:
+    dest: "{{home_dir}}/.bashrc"
+    block: |
+      export GOPATH=$HOME/go
+      export GOBIN=$GOPATH/bin
+      export PATH=$GOBIN:$PATH:/usr/local/go/bin
+    marker: '# {mark} ANSIBLE MANAGED BLOCK - changes for golang'
+    insertafter: EOF
+    create: yes 
+  when: go_upgrade

@@ -1,0 +1,80 @@
+- hosts: leda
+  vars:
+    cluster_name: "leda"
+    vip_iface: "eno1"
+    vip_addr: "10.0.0.84"
+  tasks:
+    - name: cluster nodes IP addresses
+      debug:
+        msg: "{{ hostvars[item]['ansible_' + vip_iface]['ipv4']['address'] }} {{ item }}"
+      with_items: "{{ ansible_play_hosts }}"
+- hosts: localhost
+  vars:
+    cluster_name: "leda"
+    vip_iface: "eno1"
+    vip_addr: "10.0.0.84"
+  gather_facts: False
+  become: false
+  tasks:
+     - name: "Generate private key per cluster host"
+       openssl_privatekey:
+            path: ./roles/etcd/artifacts/{{item}}.key
+            type: RSA
+            size: 4096
+            state: present
+            force: true
+       with_items: "{{ groups['leda'] }}"
+     - name: "Generate CSR for each member"
+       openssl_csr:
+            path: ./roles/etcd/artifacts/{{item}}.csr
+            privatekey_path: ./roles/etcd/artifacts/{{item}}.key
+            common_name: "{{item}}"
+            key_usage:
+              - digitalSignature
+            extended_key_usage:
+              - clientAuth
+              - serverAuth
+            subject_alt_name:
+              - IP:{{ hostvars[item]['ansible_' + vip_iface]['ipv4']['address']   }}
+              - IP:{{ vip_addr }}
+              - IP:127.0.0.1
+            force: True
+       with_items: "{{ groups['leda'] }}"
+     - name: "Generate private key for CA"
+       openssl_privatekey:
+         path: ./roles/etcd/artifacts/ca.key
+         type: RSA
+         size: 4096
+         state: present
+         force: True
+     - name: "Generate CSR for CA"
+       openssl_csr:
+         path: ./roles/etcd/artifacts/ca.csr
+         privatekey_path: ./roles/etcd/artifacts/ca.key
+         common_name: ca
+         organization_name: "Lamia CA"
+         basic_constraints:
+           - CA:TRUE
+           - pathlen:1
+         basic_constraints_critical: True
+         key_usage:
+           - keyCertSign
+           - digitalSignature
+         force: True
+     - name: "Generate self-signed CA certificate"
+       openssl_certificate:
+         path: ./roles/etcd/artifacts/ca.crt
+         privatekey_path: ./roles/etcd/artifacts/ca.key
+         csr_path: ./roles/etcd/artifacts/ca.csr
+         provider: selfsigned
+         force: True
+     - name: "Generate a member certificate signed with our own CA certificate"
+       openssl_certificate:
+         path: ./roles/etcd/artifacts/{{item}}.crt
+         csr_path: ./roles/etcd/artifacts/{{item}}.csr
+         ownca_path: ./roles/etcd/artifacts/ca.crt
+         ownca_privatekey_path: ./roles/etcd/artifacts/ca.key
+         provider: ownca
+         force: True
+       with_items: "{{ groups['leda'] }}"
+

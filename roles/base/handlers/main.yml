@@ -1,0 +1,4 @@
+- name: reconfigure unattended-upgrades
+  become: yes
+  command: 
+    cmd: dpkg-reconfigure -f noninteractive unattended-upgrades

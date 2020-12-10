@@ -1,0 +1,44 @@
+# This is the default ansible 'hosts' file.
+#
+# It should live in /etc/ansible/hosts
+#
+#   - Comments begin with the '#' character
+#   - Blank lines are ignored
+#   - Groups of hosts are delimited by [header] elements
+#   - You can enter hostnames or ip addresses
+#   - A hostname/ip can be a member of multiple groups
+
+# Variables
+  vars:
+    cluster_name: "k3s-cluster"
+    my_user: "debby"
+    my_email: "debby@example.com"
+    my_name: "Debby"
+    new_go_version: "1.15.4"
+    docker_compose_version: "1.27.4"
+    docker_apt_release_channel: stable
+    docker_users:
+        - debby
+    vip_iface: "eno1"
+    vip_addr: "10.0.0.54"
+    vip_password: "StrongPassword01"
+    vip_check_kubernetes: False
+    etcd_version: "3.4.13"
+
+####################
+# Hosts            #
+####################
+node1
+node2
+node3
+
+####################
+# Leda cluster     #
+####################
+[cluster]
+node1
+node2
+node3
+
+[primus]
+node1
