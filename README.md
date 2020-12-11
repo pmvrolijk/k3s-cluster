@@ -26,14 +26,15 @@ Final architecture:
        \________________/   \________________/   \________________/
 ```
 
-Hosts and variables configuration in /cluster/hosts. All nodes in cluster: will be added as master. The host in primus: will be the default holder of the 
-virtual IP address (highest priority).
+Hosts and variables configuration in /cluster/hosts. All nodes in _cluster:_ will be added as master. The host in _primus:_ will be the default holder of the 
+virtual IP address (highest priority). All hostnames and the cluster-vip will be added to /etc/hosts on the nodes.
 
 Usage
 -----
 
 1. Set up a minimum of three Debian servers (tested on Buster). 
-    - Minimal install; Base-utils and SSH server
+    - Minimal install; base-utils and SSH server
+    - Static IPs
     - Passwordless (PKI) access for a sudo user
 2. Change variables (see below)
 3. ./createCerts.sh
